@@ -1,0 +1,59 @@
+using UnityEngine;
+
+public class LookAtTrigger : MonoBehaviour
+{
+    [System.Serializable]
+    public class AudioTarget
+    {
+        public AudioSource audioSource;  // The audio source to control
+        public Transform targetObject;   // The object the player should look at to hear the audio
+    }
+
+    public AudioTarget[] audioTargets;   // Array of audio targets (audio source + target object)
+    public Transform playerCamera;       // Player's camera transform
+    public float maxDistance = 10f;      // Maximum distance for detection
+
+    private void Start()
+    {
+        // Start each audio source playing but muted initially
+        foreach (AudioTarget audioTarget in audioTargets)
+        {
+            audioTarget.audioSource.volume = 0f;
+            audioTarget.audioSource.Play();
+        }
+    }
+
+    private void Update()
+    {
+        Ray ray = new Ray(playerCamera.position, playerCamera.forward);
+        RaycastHit hit;
+
+        Debug.DrawRay(playerCamera.position, playerCamera.forward * maxDistance, Color.red);
+
+        // Perform the raycast
+        if (Physics.Raycast(ray, out hit, maxDistance))
+        {
+            // Loop through each audio target to check if it's the one being looked at
+            foreach (AudioTarget audioTarget in audioTargets)
+            {
+                // If the ray hits this specific target object, set volume to full; otherwise, mute it
+                if (hit.collider.transform == audioTarget.targetObject)
+                {
+                    audioTarget.audioSource.volume = 1f;  // Make audio audible
+                }
+                else
+                {
+                    audioTarget.audioSource.volume = 0f;  // Mute other audio sources
+                }
+            }
+        }
+        else
+        {
+            // If no object is hit, mute all audio
+            foreach (AudioTarget audioTarget in audioTargets)
+            {
+                audioTarget.audioSource.volume = 0f;
+            }
+        }
+    }
+}
