@@ -1,0 +1,100 @@
+using UnityEngine;
+
+public class LookAtTrigger : MonoBehaviour
+{
+    [System.Serializable]
+    public class AudioTarget
+    {
+        public AudioSource audioSource;  
+        public Transform targetObject;   
+        public Collider triggerCollider;
+        [Range(0f, 1f)] public float spatialBlend = 1f;
+    }
+
+    public AudioTarget[] audioTargets;
+    public Transform playerCamera;
+    public float maxDistance = 10f; 
+    private AudioTarget activeColliderTarget;
+
+    private void Start()
+    {
+        foreach (AudioTarget audioTarget in audioTargets)
+        {
+            audioTarget.audioSource.volume = 0f;
+            audioTarget.audioSource.spatialBlend = audioTarget.spatialBlend;
+            audioTarget.audioSource.Play();
+
+            if (audioTarget.triggerCollider != null)
+            {
+                audioTarget.triggerCollider.isTrigger = true;
+            }
+        }
+    }
+
+    private void Update()
+    {
+        HandleColliderBehavior();
+
+        if (activeColliderTarget == null)
+        {
+            HandleLookAtBehavior();
+        }
+    }
+
+    private void HandleLookAtBehavior()
+    {
+        Ray ray = new Ray(playerCamera.position, playerCamera.forward);
+        RaycastHit hit;
+
+        Debug.DrawRay(playerCamera.position, playerCamera.forward * maxDistance, Color.red);
+
+        if (Physics.Raycast(ray, out hit, maxDistance))
+        {
+            foreach (AudioTarget audioTarget in audioTargets)
+            {
+                if (hit.collider.transform == audioTarget.targetObject)
+                {
+                    float distance = Vector3.Distance(playerCamera.position, audioTarget.targetObject.position);
+                    float volume = Mathf.Clamp01(1f / (distance * distance));  // Inverse Square Law
+                    
+                    // Convert to perceived loudness using logarithmic scale
+                    audioTarget.audioSource.volume = Mathf.Clamp01(1f + Mathf.Log10(volume + 0.001f)); 
+                }
+                else
+                {
+                    audioTarget.audioSource.volume = 0f;
+                }
+            }
+        }
+        else
+        {
+            foreach (AudioTarget audioTarget in audioTargets)
+            {
+                audioTarget.audioSource.volume = 0f;
+            }
+        }
+    }
+
+    private void HandleColliderBehavior()
+    {
+        bool isInsideCollider = false;
+        foreach (AudioTarget audioTarget in audioTargets)
+        {
+            if (audioTarget.triggerCollider != null && audioTarget.triggerCollider.bounds.Contains(playerCamera.position))
+            {
+                activeColliderTarget = audioTarget;
+                isInsideCollider = true;
+                audioTarget.audioSource.volume = 1f;
+            }
+            else
+            {
+                audioTarget.audioSource.volume = 0f;
+            }
+        }
+
+        if (!isInsideCollider)
+        {
+            activeColliderTarget = null;
+        }
+    }
+}
